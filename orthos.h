@@ -22,3 +22,15 @@
  *
  */
 
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <limits.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/inotify.h>
+
+#define EVENT_SIZE    ( sizeof( struct inotify_event ) )
+/* 1024 events buffered */
+#define EVENT_BUF_LEN ( 1024 * ( EVENT_SIZE + NAME_MAX + 1 ) )
