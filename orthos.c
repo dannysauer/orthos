@@ -105,7 +105,8 @@ int main(int argc, char* ARGV[], char* ENV[]){
  * memory-efficient, though, so just allocating an array to hold all possible
  * integers is not a great idea. :)  I think that a balanced binary search tree
  * (an "AVL tree") makes for a good solution here.  So, here's an
- * implementation.
+ * implementation.  There's some good documentation on how AVL trees work
+ * located at http://adtinfo.org/libavl.html/AVL-Trees.html
  *
  * The data stored is an event_map struct, which contains an integer watch
  * descriptor.  So, we'll use that as the sorted key.
