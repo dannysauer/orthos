@@ -97,3 +97,18 @@ int main(int argc, char* ARGV[], char* ENV[]){
     return 0;
 }
 
+/*
+ * We need to store the "file descriptor to directory name" mappings in some
+ * kind of structure.  In general, we'll expect to be looking up mappings more
+ * often than we'll be creating new ones, so we can afford a minor trade-offs
+ * in insertion speed compared to retreival speed.  We want to be somewhat
+ * memory-efficient, though, so just allocating an array to hold all possible
+ * integers is not a great idea. :)  I think that a balanced binary search tree
+ * (an "AVL tree") makes for a good solution here.  So, here's an
+ * implementation.
+ *
+ * The data stored is an event_map struct, which contains an integer watch
+ * descriptor.  So, we'll use that as the sorted key.
+ */
+
+

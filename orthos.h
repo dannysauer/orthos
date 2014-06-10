@@ -22,6 +22,9 @@
  *
  */
 
+#ifndef ORTHOS_H
+#define ORTHOS_H
+
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -34,3 +37,19 @@
 #define EVENT_SIZE    ( sizeof( struct inotify_event ) )
 /* 1024 events buffered */
 #define EVENT_BUF_LEN ( 1024 * ( EVENT_SIZE + NAME_MAX + 1 ) )
+
+/* descriptor->path mapping */
+struct event_map {
+    int wd;      /* watch descriptor */
+    char path[]; /* directory associated with descriptor */
+};
+
+/* AVL tree node */
+struct tree_node {
+    struct tree_node* parent;
+    struct tree_node* left;
+    struct tree_node* right;
+    struct event_map* data;
+};
+
+#endif /* orthos.h */
