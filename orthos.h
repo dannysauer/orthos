@@ -44,12 +44,27 @@ struct event_map {
     char path[]; /* directory associated with descriptor */
 };
 
-/* AVL tree node */
-struct tree_node {
-    struct tree_node* parent;
-    struct tree_node* left;
-    struct tree_node* right;
-    struct event_map* data;
+signed int event_cmp(const struct event_map*, const struct event_map*);
+
+/* Danny's generic AVL tree stuff */
+struct avl_tree {
+    struct avl_tree_node* root;
+    signed int (*compare)(const void*, const void*);
 };
+
+struct avl_tree_node {
+    // struct avl_tree_node* parent;
+    struct avl_tree_node* left;
+    struct avl_tree_node* right;
+    signed int balance;
+    //struct event_map* data;
+    void* data;
+};
+
+struct avl_tree* avl_create();
+void* avl_insert(
+        struct avl_tree*,
+        void*
+);
 
 #endif /* orthos.h */

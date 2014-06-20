@@ -33,6 +33,7 @@ int main(int argc, char* ARGV[], char* ENV[]){
     char buffer[EVENT_BUF_LEN];
     struct stat s;
     struct inotify_event* event;
+    struct avl_tree* dirs;
 
     if( argc < 2 ){
         printf( "Usage: %s file [file2 .. fileN]\n", ARGV[0] );
@@ -44,6 +45,21 @@ int main(int argc, char* ARGV[], char* ENV[]){
         perror( "Failed to initialize inotify");
         return e;
     }
+
+    /* new tree which will use event_cmp to compare */
+    if( NULL == (dirs = avl_create(event_cmp)) ){
+        e = errno;
+        perror( "Failed to initialize inotify");
+        return e;
+    }
+    
+    struct event_map* a = malloc(sizeof(struct event_map*));
+    a->wd = 1;
+    struct event_map* b = malloc(sizeof(struct event_map*));
+    b->wd = 2;
+    avl_insert(dirs, a);
+    avl_insert(dirs, b);
+    return 0;
 
     /*
      * add watches
@@ -97,6 +113,28 @@ int main(int argc, char* ARGV[], char* ENV[]){
     return 0;
 }
 
+signed int event_cmp(
+        const struct event_map* const a,
+        const struct event_map* const b
+        ){
+    if( a == NULL && b == NULL ){
+        return 0;
+    }
+    if( a == NULL ){
+        return -1;
+    }
+    if( b == NULL ){
+        return 1;
+    }
+    if( a->wd > b->wd ){
+        return -1;
+    }
+    if( a->wd < b->wd ){
+        return 1;
+    }
+    return 0;
+}
+
 /*
  * We need to store the "file descriptor to directory name" mappings in some
  * kind of structure.  In general, we'll expect to be looking up mappings more
@@ -112,4 +150,156 @@ int main(int argc, char* ARGV[], char* ENV[]){
  * descriptor.  So, we'll use that as the sorted key.
  */
 
+/* 
+ * rebalancing includes updating the balance fator of a node.  The balance
+ * factor is the height of the right tree minus the height of the left tree.
+ * So, the factor is negative if the left is taller, positive if the right is
+ * taller, and 0 if they're equal.
+ */
 
+/*
+ * create a new avl tree
+ */
+struct avl_tree* avl_create( signed int (*cmp)(const void*, const void*) ) {
+    struct avl_tree* tree;
+
+    if( NULL == (tree = malloc( sizeof(*tree) )) ){
+        return NULL;
+    }
+     /* init tree */
+    tree->root = NULL;
+    tree->compare = cmp;
+
+    return tree;
+}
+
+/*
+ * return the data field from a tree node
+ */
+void * avl_lookup(
+        const struct avl_tree* const tree, 
+        const void* const data
+        ){
+    struct avl_tree_node* n;
+    int cmp;
+
+    //assert( tree != NULL && data != NULL );
+    if( tree == NULL || data == NULL ){
+        errno = EINVAL;
+        return NULL;
+    }
+
+    for( n = tree->root; n != NULL; ){
+        cmp = tree->compare( data, n->data);
+        if( cmp > 0 ){
+            n = n->right;
+        }
+        else if( cmp < 0 ){
+            n = n->left;
+        }
+        else{
+            return n->data;
+        }
+    }
+
+    /* not found */
+    return NULL;
+}
+
+void* avl_insert(
+        struct avl_tree* tree,
+        void* data // this may actually end up changed; we store a pointer
+        ){
+    int cmp;
+    struct avl_tree_node* n;  /* current node */
+    struct avl_tree_node* np; /* node's parent */
+    struct avl_tree_node* z;  /* last non-zero node */
+    struct avl_tree_node* zp; /* last non-zero node's parent */
+    struct avl_tree_node* newnode;
+
+    /* track path we took to the insertion so we can adjust balance */
+    /* using a linked list because arrays are limiting */
+    /* I might use all of your memory! All of it! Bwa hah ha ha ha! */
+    struct path_element {
+        struct path_element  *previous;
+        struct avl_tree_node *parent_node;
+        struct avl_tree_node *node;
+        int direction;
+    };
+    struct path_element* path;
+    struct path_element* p;
+
+    /* sanity check */
+    if( tree == NULL || data == NULL ){
+        /* explode! */
+        return NULL;
+    }
+
+    n  = tree->root;
+    np = n;
+    //z  = n; /* should z / zp start at NULL instead? */
+    //zp = NULL;
+    /* find insertion point */
+    while( n != NULL ){
+        cmp = tree->compare( data, n->data );
+        // if they match, then we're done
+        if( cmp == 0 ){
+            return n->data;
+        }
+
+        /*
+        if( n->balance != 0 ){
+            z  = n;
+            zp = np;
+        }
+        */
+
+        // Add a new component to the path
+        p = malloc(sizeof(*p));
+        p->previous    = path;
+        p->direction   = cmp;
+        p->parent_node = np;
+        p->node        = n;
+        /* I got to "node" from "parent_node" in direction "cmp" */
+        path = p;
+
+        // On to the next node!
+        np = n;
+        n = (cmp < 0 ) ? n->left : n->right;
+    }
+
+    /* create and insert node */
+    if( NULL == (newnode = malloc(sizeof( *newnode ))) ){
+        // maybe set errno?  It's probably already set.
+        return NULL;
+    }
+    newnode->data  = data;
+    newnode->left  = NULL;
+    newnode->right = NULL;
+    newnode->balance = 0;
+
+    if( np == NULL ){
+        /* we never entered the loop and the tree is empty */
+        tree->root = newnode;
+    }
+    else if( cmp < 0 ){
+        np->left = newnode;
+    }
+    else{
+        np->right = newnode;
+    }
+
+    printf("data: '%i'\n", (int)data);
+    printf("new pointer: '%i'\n", (int)(newnode->data));
+    printf("root pointer: '%i'\n", (int)(tree->root->data));
+    if( path == NULL ){
+        /* we never entered the loop, but the tree is not empty */
+        return newnode->data;
+    }
+
+        /* update balance factor */
+    /* rebalance */
+    printf("Ok!\n");
+}
+
+/* end orthos.c */
