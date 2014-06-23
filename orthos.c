@@ -57,8 +57,14 @@ int main(int argc, char* ARGV[], char* ENV[]){
     a->wd = 1;
     struct event_map* b = malloc(sizeof(struct event_map*));
     b->wd = 2;
+    struct event_map* c = malloc(sizeof(struct event_map*));
+    c->wd = 3;
+    struct event_map* d = malloc(sizeof(struct event_map*));
+    d->wd = 4;
     avl_insert(dirs, a);
+    avl_insert(dirs, c);
     avl_insert(dirs, b);
+    avl_insert(dirs, d);
     return 0;
 
     /*
@@ -127,10 +133,10 @@ signed int event_cmp(
         return 1;
     }
     if( a->wd > b->wd ){
-        return -1;
+        return 1;
     }
     if( a->wd < b->wd ){
-        return 1;
+        return -1;
     }
     return 0;
 }
@@ -213,8 +219,8 @@ void* avl_insert(
     int cmp;
     struct avl_tree_node* n;  /* current node */
     struct avl_tree_node* np; /* node's parent */
-    struct avl_tree_node* z;  /* last non-zero node */
-    struct avl_tree_node* zp; /* last non-zero node's parent */
+    //struct avl_tree_node* z;  /* last non-zero node */
+    //struct avl_tree_node* zp; /* last non-zero node's parent */
     struct avl_tree_node* newnode;
 
     /* track path we took to the insertion so we can adjust balance */
@@ -235,10 +241,15 @@ void* avl_insert(
         return NULL;
     }
 
-    n  = tree->root;
-    np = n;
-    //z  = n; /* should z / zp start at NULL instead? */
-    //zp = NULL;
+    /* init variables */
+    cmp  = 0;
+    n    = tree->root;
+    np   = n;
+    //z    = n; /* should z / zp start at NULL instead? */
+    //zp   = NULL;
+    p    = NULL;
+    path = p;
+
     /* find insertion point */
     while( n != NULL ){
         cmp = tree->compare( data, n->data );
@@ -262,6 +273,7 @@ void* avl_insert(
         p->node        = n;
         /* I got to "node" from "parent_node" in direction "cmp" */
         path = p;
+        printf( "Moving %i\n", cmp);
 
         // On to the next node!
         np = n;
@@ -270,6 +282,12 @@ void* avl_insert(
 
     /* create and insert node */
     if( NULL == (newnode = malloc(sizeof( *newnode ))) ){
+        /* free temporary linked list */
+        p = path;
+        while( NULL != p ){
+            free(path);
+            p = p->previous;
+        }
         // maybe set errno?  It's probably already set.
         return NULL;
     }
@@ -289,16 +307,57 @@ void* avl_insert(
         np->right = newnode;
     }
 
-    printf("data: '%i'\n", (int)data);
+    struct event_map *d = (struct event_map*)data;
+    printf("data: '%i' (wd=%i)\n", (int)data, d->wd);
     printf("new pointer: '%i'\n", (int)(newnode->data));
     printf("root pointer: '%i'\n", (int)(tree->root->data));
     if( path == NULL ){
         /* we never entered the loop, but the tree is not empty */
+        /* also, no need to free temporary linked list */
         return newnode->data;
     }
 
-        /* update balance factor */
+    /* add final node to path structure, to make the loop easier */
+    /* do I really need to do this? */
+    p = malloc(sizeof(*p));
+    p->previous    = path;
+    p->direction   = cmp;
+    p->parent_node = np;
+    p->node        = newnode;
+    path = p;
+
+    /* update balance factor */
+    p = path;
+    while( NULL != p->previous ){ // path never includes the root node
+        // direction will be -1 or +1
+        p->parent_node->balance += p->direction;
+        /* if parent went to 0, then we're done climbing
+         * if parent went to -2 or +2, then we need to rotate
+         * if parent went to -1 or +1, then we keep propagating
+         */
+        //struct event_map* d = (struct event_map*)p->parent_node->data;
+        d = (struct event_map*)p->parent_node->data;
+        printf("node parent (%i) balance changed to %i\n",
+                d->wd,
+                p->parent_node->balance);
+        if( 0 == p->parent_node->balance ){
+            break;
+        }
+        else if( p->parent_node->balance < -1
+                || p->parent_node->balance > 1
+        ){
+            // rotate parent node
+            // break;
+        }
+        p = p->previous;
+    }
     /* rebalance */
+    /* We have a linked list that needs free'd */
+    p = path;
+    while( NULL != p ){
+        free(path);
+        p = p->previous;
+    }
     printf("Ok!\n");
 }
 
