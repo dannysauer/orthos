@@ -29,7 +29,7 @@ int main(int argc, char* ARGV[], char* ENV[]){
     int len=0;
     int handle;
     char* fail_to_watch = "Failed to watch";
-    char msg[NAME_MAX + sizeof(fail_to_watch) + 3]; /* space & 2x quotes */
+    char msg[NAME_MAX + sizeof(fail_to_watch) + 4]; /* null, space & 2 quotes */
     char buffer[EVENT_BUF_LEN];
     struct stat s;
     struct inotify_event* event;
