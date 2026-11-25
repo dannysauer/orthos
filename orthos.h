@@ -2,8 +2,7 @@
  * $Id$
  *******************************************************************************
  * Orthos
- * A daemon to watch several files, alerting when they are modified without
- * prior authorization.
+ * Watch a Subversion export and log differences from SVN HEAD.
  *
  *******************************************************************************
  * Copyright 2014 Danny Sauer
@@ -25,46 +24,31 @@
 #ifndef ORTHOS_H
 #define ORTHOS_H
 
-#include <stdio.h>
+#include <dirent.h>
 #include <errno.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <fcntl.h>
+#include <ftw.h>
 #include <limits.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <stdbool.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/inotify.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#define EVENT_SIZE    ( sizeof( struct inotify_event ) )
-/* 1024 events buffered */
-#define EVENT_BUF_LEN ( 1024 * ( EVENT_SIZE + NAME_MAX + 1 ) )
-
-/* descriptor->path mapping */
-struct event_map {
-    int wd;      /* watch descriptor */
-    char path[]; /* directory associated with descriptor */
+struct mismatch {
+    struct mismatch* next;
+    char* path;
+    const char* reason;
+    bool seen;
 };
 
-signed int event_cmp(const struct event_map*, const struct event_map*);
-
-/* Danny's generic AVL tree stuff */
-struct avl_tree {
-    struct avl_tree_node* root;
-    signed int (*compare)(const void*, const void*);
+struct watch {
+    struct watch* next;
+    int wd;
+    bool seen;
 };
-
-struct avl_tree_node {
-    // struct avl_tree_node* parent;
-    struct avl_tree_node* left;
-    struct avl_tree_node* right;
-    signed int balance;
-    //struct event_map* data;
-    void* data;
-};
-
-struct avl_tree* avl_create();
-void* avl_insert(
-        struct avl_tree*,
-        void*
-);
 
 #endif /* orthos.h */
